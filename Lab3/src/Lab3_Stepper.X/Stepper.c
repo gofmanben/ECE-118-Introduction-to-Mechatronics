@@ -65,7 +65,9 @@ static enum {
 } stepperState = off;
 
 static enum {
-    step_one, step_two, step_three, step_four
+    step_one, step_two, step_three, step_four,
+    // Part 5: Half-step Drive - additional states
+    step_five, step_six, step_seven, step_eight
 } coilState = step_one;
 
 /*******************************************************************************
@@ -91,6 +93,31 @@ uint32_t CalculateOverflowPeriod(uint16_t rate);
  * @author Gabriel Hugh Elkaim
  * @date 2016.10.16 15:42 */
 static void FullStepDrive(void);
+
+/**
+ * @Function: WaveDrive(void)
+ * @param none
+ * @return none
+ * @remark Implements the wave drive state machine by energizing
+ *         only one stepper motor coil at a time.
+ *         Controls the coil sequence for forward and reverse rotation.
+ * @author Benjamin Gofman
+ * @date 2026.10.24
+ */
+static void WaveDrive(void); // Part 5: Wave Drive (Added)
+
+/**
+ * @Function: HalfStepDrive(void)
+ * @param none
+ * @return none
+ * @remark Implements the half-step drive state machine by
+ *         alternating between one and two energized coils.
+ *         Uses eight states to provide smaller step angles.
+ * @author Benjamin Gofman
+ * @date 2026.10.24
+ */
+static void HalfStepDrive(void); // Part 5: Half-step Drive (Added)
+
 
 /*******************************************************************************
  * PUBLIC FUNCTIONS                                                           *
@@ -122,6 +149,21 @@ int8_t Stepper_Init(void)
     TRIS_COIL_B_ENABLE = 0;
     // Calculate overflow time and prescalar
     overflowPeriod = CalculateOverflowPeriod(stepsPerSecondRate);
+    
+    // Part 6: Configure PIC32 pins for DRV8811 after the original L298 setup.
+#ifdef DRV8811_DRIVE
+
+    // Set initial output levels before configuring pins.
+    DRV8811_STEP = 1;        // Keep STEP inactive.
+    DRV8811_DIRECTION = 0;   // Set initial rotation direction.
+    DRV8811_ENABLE = 0;      // Keep motor driver disabled.
+
+    // Configure DRV8811 control pins as outputs.
+    TRIS_DRV8811_STEP = 0;       // RE4: STEP output.
+    TRIS_DRV8811_DIRECTION = 0;  // RF1: DIRECTION output.
+    TRIS_DRV8811_ENABLE = 0;     // RE3: ENABLE output.
+
+#endif // DRV8811_DRIVE
 
     // Setup timer and interrupt
     T3CON = 0; // reset everything
@@ -205,8 +247,22 @@ int8_t Stepper_StartSteps(void)
     if ((stepCount == 0) || (stepperState == stepping)) {
         return ERROR;
     }
+    
+    // Part 6: Start the DRV8811 stepper motor driver.
+#ifdef DRV8811_DRIVE
+
+    DRV8811_DIRECTION = stepDir;  // Set motor direction (FORWARD or REVERSE).
+    DRV8811_STEP = 1;           // Keep STEP inactive before starting.
+    DRV8811_ENABLE = 1;         // Enable the DRV8811 driver through the inverted board input.
+
+#endif // DRV8811_DRIVE
+    
     stepperState = stepping;
-    TurnOnDrive();
+    //TurnOnDrive(); // CHANGED: Disable for Wave and half-step modes.
+    #ifdef FULL_STEP_DRIVE
+        TurnOnDrive(); // Part 5: Enable both coils only for full-step drive.
+    #endif
+    
     return SUCCESS;
 }
 
@@ -247,6 +303,13 @@ int8_t Stepper_End(void)
     }
     T3CONbits.ON = 0; // halt timer3
     stepperState = off;
+    
+#ifdef DRV8811_DRIVE
+    // Part 6: Shut down the DRV8811 motor driver.
+    DRV8811_ENABLE = 0; // Disable the driver.
+    DRV8811_STEP = 1;   // Keep STEP inactive.
+#else
+    // Part 5: Original L298 shutdown.
     ShutDownDrive();
     // turn hardware pins back to inputs
     TRIS_COIL_A_DIRECTION = 1;
@@ -255,6 +318,8 @@ int8_t Stepper_End(void)
     TRIS_COIL_B_DIRECTION = 1;
     TRIS_COIL_B_DIRECTION_INV = 1;
     TRIS_COIL_B_ENABLE = 1;
+#endif // DRV8811_DRIVE
+
     // reset module variables
     stepCount = 0;
     overflowReps = 0;
@@ -354,6 +419,232 @@ void FullStepDrive(void)
     }
 }
 
+// Function to implement wave drive 
+// by energizing only one stepper motor coil at a time.
+void WaveDrive(void) // Part 5: Wave Drive (Added implementation)
+{
+    // Disable both coils before changing their directions.
+    COIL_A_ENABLE = 0;
+    COIL_B_ENABLE = 0;
+
+    switch (coilState) {
+
+        case step_one:
+            // Step 1: Coil A forward, Coil B OFF
+            COIL_A_DIRECTION = 1;
+            COIL_A_DIRECTION_INV = 0;
+
+            // Enable only Coil A.
+            COIL_A_ENABLE = 1;
+            COIL_B_ENABLE = 0;
+
+            // Select the next state based on direction.
+            if (stepDir == FORWARD) {
+                coilState = step_two;
+            } else {
+                coilState = step_four;
+            }
+            break;
+
+        case step_two:
+            // Step 2: Coil A OFF, Coil B reverse
+            COIL_B_DIRECTION = 0;
+            COIL_B_DIRECTION_INV = 1;
+
+            // Enable only Coil B.
+            COIL_A_ENABLE = 0;
+            COIL_B_ENABLE = 1;
+
+            // Select the next state based on direction.
+            if (stepDir == FORWARD) {
+                coilState = step_three;
+            } else {
+                coilState = step_one;
+            }
+            break;
+
+        case step_three:
+            // Step 3: Coil A reverse, Coil B OFF
+            COIL_A_DIRECTION = 0;
+            COIL_A_DIRECTION_INV = 1;
+
+            // Enable only Coil A.
+            COIL_A_ENABLE = 1;
+            COIL_B_ENABLE = 0;
+
+            // Select the next state based on direction.
+            if (stepDir == FORWARD) {
+                coilState = step_four;
+            } else {
+                coilState = step_two;
+            }
+            break;
+
+        case step_four:
+            // Step 4: Coil A OFF, Coil B forward
+            COIL_B_DIRECTION = 1;
+            COIL_B_DIRECTION_INV = 0;
+
+            // Enable only Coil B.
+            COIL_A_ENABLE = 0;
+            COIL_B_ENABLE = 1;
+
+            // Select the next state based on direction.
+            if (stepDir == FORWARD) {
+                coilState = step_one;
+            } else {
+                coilState = step_three;
+            }
+            break;
+
+        default:
+            // Reset to the first state if an invalid state occurs.
+            coilState = step_one;
+            return;
+    }
+}
+
+// Function to implement half-step drive
+// by alternating between one and two energized motor coils.
+void HalfStepDrive(void) // Part 5: Half-step Drive (Added implementation)
+{
+    // Disable both coils before changing their directions.
+    COIL_A_ENABLE = 0;
+    COIL_B_ENABLE = 0;
+
+    switch (coilState) {
+
+        case step_one:
+            // Step 1: Coil A forward, Coil B OFF
+            COIL_A_DIRECTION = 1;
+            COIL_A_DIRECTION_INV = 0;
+
+            // Enable only Coil A.
+            COIL_A_ENABLE = 1;
+            COIL_B_ENABLE = 0;
+            break;
+
+        case step_two:
+            // Step 2: Coil A forward, Coil B reverse
+            COIL_A_DIRECTION = 1;
+            COIL_A_DIRECTION_INV = 0;
+            COIL_B_DIRECTION = 0;
+            COIL_B_DIRECTION_INV = 1;
+
+            // Enable both coils.
+            COIL_A_ENABLE = 1;
+            COIL_B_ENABLE = 1;
+            break;
+
+        case step_three:
+            // Step 3: Coil A OFF, Coil B reverse
+            COIL_B_DIRECTION = 0;
+            COIL_B_DIRECTION_INV = 1;
+
+            // Enable only Coil B.
+            COIL_A_ENABLE = 0;
+            COIL_B_ENABLE = 1;
+            break;
+
+        case step_four:
+            // Step 4: Coil A reverse, Coil B reverse
+            COIL_A_DIRECTION = 0;
+            COIL_A_DIRECTION_INV = 1;
+            COIL_B_DIRECTION = 0;
+            COIL_B_DIRECTION_INV = 1;
+
+            // Enable both coils.
+            COIL_A_ENABLE = 1;
+            COIL_B_ENABLE = 1;
+            break;
+
+        case step_five:
+            // Step 5: Coil A reverse, Coil B OFF
+            COIL_A_DIRECTION = 0;
+            COIL_A_DIRECTION_INV = 1;
+
+            // Enable only Coil A.
+            COIL_A_ENABLE = 1;
+            COIL_B_ENABLE = 0;
+            break;
+
+        case step_six:
+            // Step 6: Coil A reverse, Coil B forward
+            COIL_A_DIRECTION = 0;
+            COIL_A_DIRECTION_INV = 1;
+            COIL_B_DIRECTION = 1;
+            COIL_B_DIRECTION_INV = 0;
+
+            // Enable both coils.
+            COIL_A_ENABLE = 1;
+            COIL_B_ENABLE = 1;
+            break;
+
+        case step_seven:
+            // Step 7: Coil A OFF, Coil B forward
+            COIL_B_DIRECTION = 1;
+            COIL_B_DIRECTION_INV = 0;
+
+            // Enable only Coil B.
+            COIL_A_ENABLE = 0;
+            COIL_B_ENABLE = 1;
+            break;
+
+        case step_eight:
+            // Step 8: Coil A forward, Coil B forward
+            COIL_A_DIRECTION = 1;
+            COIL_A_DIRECTION_INV = 0;
+            COIL_B_DIRECTION = 1;
+            COIL_B_DIRECTION_INV = 0;
+
+            // Enable both coils.
+            COIL_A_ENABLE = 1;
+            COIL_B_ENABLE = 1;
+            break;
+
+        default:
+            // Reset to the first state if an invalid state occurs.
+            coilState = step_one;
+            return;
+    }
+
+    // Part 5: Select the next half-step state.
+    if (stepDir == FORWARD) {
+
+        // Forward sequence: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 1
+        if (coilState == step_eight) {
+            coilState = step_one;
+        } else {
+            coilState++;
+        }
+
+    } else {
+
+        // Reverse sequence: 1 -> 8 -> 7 -> 6 -> 5 -> 4 -> 3 -> 2 -> 1
+        if (coilState == step_one) {
+            coilState = step_eight;
+        } else {
+            coilState--;
+        }
+    }
+ }
+
+#ifdef DRV8811_DRIVE
+static void DRV8811_Step(void)
+{
+    volatile uint16_t pulseDelay;
+
+    DRV8811_STEP = 0;
+
+    for (pulseDelay = 0; pulseDelay < 100; pulseDelay++)
+    {
+        __asm__("nop");
+    }
+
+    DRV8811_STEP = 1;
+}
+#endif
+
 /****************************************************************************
  Function: Timer3IntHandler
 
@@ -369,7 +660,8 @@ void FullStepDrive(void)
 
  Author: Gabriel Hugh Elkaim, 2011.12.15 16:42
  ****************************************************************************/
-void __ISR(_TIMER_3_VECTOR) Timer3IntHandler(void)
+void __ISR(_TIMER_3_VECTOR) Timer3IntHandler(void) // C:\Program Files\Microchip\xc32\v4.30 -> // https://www.microchip.com/content/dam/mchp/documents/DEV/ProductDocuments/SoftwareTools/xc32-v4.30-full-install-windows-x64-installer.exe
+// void __ISR(_TIMER_3_VECTOR, IPL3SOFT) Timer3IntHandler(void) // C:\Program Files\Microchip\xc32\v5.10
 {
     static uint16_t timerLoopCount = 0;
     
@@ -395,16 +687,20 @@ void __ISR(_TIMER_3_VECTOR) Timer3IntHandler(void)
             if (--stepCount <= 0) {
                 stepperState = halted;
             }
-            TurnOnDrive();
+            //TurnOnDrive(); // CHANGED: Each drive mode controls its own coil enable signals
 
 #ifdef FULL_STEP_DRIVE
+            TurnOnDrive(); // CHANGED: Enable both coils and execute the full-step sequence
             FullStepDrive();
 #endif // FULL_STATE_DRIVE
 #ifdef HALF_STEP_DRIVE
+            HalfStepDrive(); // Part 5: Half-step Drive
 #endif // HALF_STATE_DRIVE
 #ifdef WAVE_DRIVE
+            WaveDrive(); // Part 5: Wave Drive
 #endif // WAVE_DRIVE
 #ifdef DRV8811_DRIVE
+            DRV8811_Step(); // Part 6: Generate one STEP pulse for the DRV8811
 #endif // DRV8811 DRIVE
             break;
         }

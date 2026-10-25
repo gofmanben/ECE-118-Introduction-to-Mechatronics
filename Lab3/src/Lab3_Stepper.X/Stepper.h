@@ -34,10 +34,10 @@
  * STEPPER MODE #DEFINES                                                       *
  ******************************************************************************/
 
-#define FULL_STEP_DRIVE
-//#define HALF_STEP_DRIVE
+//#define FULL_STEP_DRIVE
+//#define HALF_STEP_DRIVE  // Part 5
 //#define WAVE_DRIVE
-//#define DRV8811_DRIVE
+#define DRV8811_DRIVE      // Part 6
 
 #if defined FULL_STEP_DRIVE && ( defined HALF_STEP_DRIVE || defined WAVE_DRIVE || defined DRV8811_DRIVE )
 #error "Define only one stepper drive mode at a time"
@@ -76,6 +76,19 @@
 #define COIL_B_DIRECTION LATEbits.LATE2
 #define COIL_B_DIRECTION_INV LATEbits.LATE1
 
+
+// Part 6: DRV8811 Stepper Motor Driver
+// PORTZ-03: STEP, PORTZ-04: DIRECTION, PORTZ-05: ENABLE
+
+// Configure PIC32 pins as inputs (1) or outputs (0).
+#define TRIS_DRV8811_STEP TRISEbits.TRISE4           // PORTZ-03 (RE4): Configure STEP pin as an output.
+#define TRIS_DRV8811_DIRECTION TRISFbits.TRISF1      // PORTZ-04 (RF1): Configure DIRECTION pin as an output.
+#define TRIS_DRV8811_ENABLE TRISEbits.TRISE3         // PORTZ-05 (RE3): Configure ENABLE pin as an output.
+
+// Control the digital output signals sent to the DRV8811.
+#define DRV8811_STEP LATEbits.LATE4                  // PORTZ-03 (RE4): Generate STEP pulses to move the motor.
+#define DRV8811_DIRECTION LATFbits.LATF1             // PORTZ-04 (RF1): Set the motor rotation direction.
+#define DRV8811_ENABLE LATEbits.LATE3                // PORTZ-05 (RE3): Enable or disable the motor driver.
 
 /*******************************************************************************
  * PUBLIC FUNCTION PROTOTYPES                                                  *
