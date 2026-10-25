@@ -42,14 +42,17 @@
  * All grounds must be connected together.
  */
 
+#define LAB_PART 2    // Select 2 or 3 for DS3658, 4 for L298.
+#define ADC_MAX 1023 // AD_ReadADPin() returns a 10-bit value (0-1023).
+
 #include <BOARD.h>     // Initialize Uno32.
 #include <AD.h>        // Read potentiometer.
 #include <LED.h>       // Control LED bar.
 #include <pwm.h>       // Generate PWM signal.
-#include <IO_Ports.h>  // Control direction pins and switch.
 
-#define LAB_PART 2    // Select 2 or 3 for DS3658, 4 for L298.
-#define ADC_MAX 1023 // AD_ReadADPin() returns a 10-bit value (0-1023).
+#if LAB_PART == 4
+#include <IO_Ports.h>  // Part 4: Read switch and control L298 direction.
+#endif
 
 int main(void)
 {

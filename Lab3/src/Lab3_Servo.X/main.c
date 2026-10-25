@@ -24,12 +24,12 @@
  * All grounds must be connected together.
  */
 
+#define ADC_MAX 1023  // AD_ReadADPin() returns a 10-bit value (0-1023).
+
 #include <BOARD.h>     // Initialize Uno32.
 #include <AD.h>        // Read potentiometer.
 #include <LED.h>       // Control LED bar.
 #include <RC_Servo.h>  // Control RC servo.
-
-#define ADC_MAX 1023  // AD_ReadADPin() returns a 10-bit value (0-1023).
 
 int main(void)
 {
