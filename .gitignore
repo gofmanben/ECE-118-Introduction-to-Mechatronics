@@ -1,0 +1,4 @@
+Lab3/src/*/.generated_files/
+Lab3/src/*/build/
+Lab3/src/*/dist
+Lab3/src/*/nbproject/
