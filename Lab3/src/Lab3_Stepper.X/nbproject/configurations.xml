@@ -6,6 +6,9 @@
     <logicalFolder displayName="Important Files" name="ExternalFiles" projectFiles="true">
       <logicalFolder displayName="Lab3_Stepper_default" name="Lab3_Stepper_default" projectFiles="true">
         <logicalFolder displayName="components" name="components" projectFiles="true">
+          <logicalFolder displayName="Group0" name="Group0" projectFiles="true">
+            <itemPath>Lab3_Stepper_default/components/Group0/Group0.yml</itemPath>
+          </logicalFolder>
           <itemPath>Lab3_Stepper_default/components/dfp.yml</itemPath>
           <itemPath>Lab3_Stepper_default/components/core.yml</itemPath>
         </logicalFolder>
@@ -74,7 +77,6 @@
       <C32>
         <property key="additional-warnings" value="false"/>
         <property key="addresss-attribute-use" value="false"/>
-        <property key="appendMe" value=""/>
         <property key="cast-align" value="false"/>
         <property key="code-model" value="default"/>
         <property key="const-model" value="default"/>
@@ -88,7 +90,7 @@
         <property key="enable-unroll-loops" value="false"/>
         <property key="exclude-floating-point" value="false"/>
         <property key="expand-pragma-config" value="false"/>
-        <property key="extra-include-directories" value="C:\ECE118\include;Lab3_Stepper.X"/>
+        <property key="extra-include-directories" value="C:\ECE118\include;."/>
         <property key="generate-16-bit-code" value="false"/>
         <property key="generate-micro-compressed-code" value="false"/>
         <property key="isolate-each-function" value="true"/>
@@ -152,7 +154,6 @@
         <property key="additional-options-use-response-files" value="false"/>
         <property key="additional-options-write-sla" value="false"/>
         <property key="allocate-dinit" value="false"/>
-        <property key="appendMe" value=""/>
         <property key="code-dinit" value="false"/>
         <property key="ebase-addr" value=""/>
         <property key="enable-check-sections" value="false"/>
@@ -198,7 +199,6 @@
       <C32CPP>
         <property key="additional-warnings" value="false"/>
         <property key="addresss-attribute-use" value="false"/>
-        <property key="appendMe" value=""/>
         <property key="check-new" value="false"/>
         <property key="eh-specs" value="true"/>
         <property key="enable-app-io" value="false"/>
