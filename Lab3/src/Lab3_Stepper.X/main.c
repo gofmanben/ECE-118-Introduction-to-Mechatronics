@@ -1,34 +1,51 @@
-/* 
+
+/*
  * File:   main.c
  * Author: bgofman
  *
- * Created on October 24, 2026, 1:02 PM
+ * ECE118 Lab 3 - Stepper Motor
+ * Part 5: L298
+ * Part 6: DRV8811
  */
 
 #include <xc.h>
 #include <BOARD.h>
 #include "Stepper.h"
 
+#define MOTOR_FULL_STEPS 200       // 200 full steps per revolution.
+#define MOTOR_HALF_STEPS 400       // 400 half steps per revolution.
+#define MOTOR_MICRO_STEPS 1600     // 1600 steps per revolution at 1/8 microstepping.
+
 int main(void)
 {
-    // Initialize Uno32
+    // Select the number of steps per revolution.
+    int32_t steps = MOTOR_FULL_STEPS;
+
+    // Initialize Uno32.
     BOARD_Init();
 
-    // Initialize stepper motor
+    // Initialize stepper motor.
     Stepper_Init();
 
-    // Set speed: 100 steps per second
+    // Set motor speed to 100 steps per second.
     Stepper_SetRate(100);
-
-    // Move forward 200 steps
-    Stepper_InitSteps(FORWARD, 200);
 
     while (1)
     {
-        // Main loop
+        // Move forward.
+        Stepper_InitSteps(FORWARD, steps);
+
+        // Wait until the motor stops.
+        while (Stepper_IsStepping()) {
+        }
+
+        // Move backward.
+        Stepper_InitSteps(REVERSE, steps);
+
+        // Wait until the motor stops.
+        while (Stepper_IsStepping()) {
+        }
     }
 
     return 0;
 }
-
-
